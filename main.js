@@ -56,7 +56,6 @@ function convertScript() {
   if (resultStr1 !== inputStr) {
     document.querySelector("#result1").value = resultStr1;
   }
-
 }
 
 function copyResult1() {
@@ -64,33 +63,8 @@ function copyResult1() {
   navigator.clipboard.writeText(resultStr);
 }
 
-function copyResult2() {
-  resultStr = document.querySelector("#result2").value;
-  navigator.clipboard.writeText(resultStr);
-}
-
 function getLocalUrl() {
   document.querySelector("#ghproxy").value = window.location.href;
-}
-
-function convertRes() {
-  inputStr = document.querySelector("#githubRes").value;
-  if (inputStr == "") {
-    return;
-  }
-
-  ghproxy = document.querySelector("#ghproxy").value;
-
-  // 先给裸的git类链接前面加上 https://
-  inputStr = inputStr.replace(/ git/g, ' https://git');
-
-  resultStr = ghproxy + inputStr;
-
-  document.querySelector("#resAfterGhproxy").value = resultStr;
-}
-
-function fetchRes() {
-  window.open(document.querySelector("#resAfterGhproxy").value);
 }
 
 getLocalUrl()
