@@ -1,287 +1,133 @@
-'use strict'
+/**
+ * 欢迎来到 GitHub 专属反向代理 Worker
+ * * 此脚本基于 NyaMisty/cloudflare-workers-uniproxy (MIT License) 修改而来。
+ * 专门用于反向代理 GitHub 相关的域名，并自动重写 .sh 脚本中的 GitHub 链接。
+ */
+
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request));
+});
 
 /**
- * static files (404.html, sw.js, conf.js)
+ * 处理所有传入的请求
+ * @param {Request} request
  */
-const ASSET_URL = 'https://crazypeace.github.io/ghproxy/'
-// 前缀，如果自定义路由为example.com/gh/*，将PREFIX改为 '/gh/'，注意，少一个杠都会错！
-const PREFIX = '/'
-// 分支文件使用jsDelivr镜像的开关，0为关闭，默认关闭
-const Config = {
-    jsdelivr: 0
-}
+async function handleRequest(request) {
+  const url = new URL(request.url);
+  const workerUrl = url.origin; // 获取 worker 自己的域名, e.g., https://my-worker.example.com
 
-const whiteList = [] // 白名单，路径里面有包含字符的才会通过，e.g. ['/username/']
+  // 1. 本代理 接受的 path 部分 应该是一个 http:// 或者 https://
+  // 我们从 path 中提取目标 URL
+  let path = url.pathname.substring(1); // 移除开头的 '/'
 
-/** @type {RequestInit} */
-const PREFLIGHT_INIT = {
-    status: 204,
-    headers: new Headers({
-        'access-control-allow-origin': '*',
-        'access-control-allow-methods': 'GET,POST,PUT,PATCH,TRACE,DELETE,HEAD,OPTIONS',
-        'access-control-max-age': '1728000',
-    }),
-}
+  if (!path || path === 'favicon.ico') {
+    return new Response('使用方法: ' + workerUrl + '/<您要代理的GitHub链接>', { status: 400 });
+  }
 
-const exp1 = /^(?:https?:\/\/)?github\.com\/.+?\/.+?\/(?:releases|archive)\/.*$/i
-const exp2 = /^(?:https?:\/\/)?github\.com\/.+?\/.+?\/(?:blob|raw)\/.*$/i
-const exp3 = /^(?:https?:\/\/)?github\.com\/.+?\/.+?\/(?:info|git-).*$/i
-const exp4 = /^(?:https?:\/\/)?raw\.(?:githubusercontent|github)\.com\/.+?\/.+?\/.+?\/.+$/i
-const exp5 = /^(?:https?:\/\/)?gist\.(?:githubusercontent|github)\.com\/.+?\/.+?\/.+$/i
-const exp6 = /^(?:https?:\/\/)?github\.com\/.+?\/.+?\/tags.*$/i
-const exp7 = /^(?:https?:\/\/)?api\.github\.com\/.*$/i
-const exp8 = /^(?:https?:\/\/)?git\.io\/.*$/i
-const exp9 = /^(?:https?:\/\/)?gitlab\.com\/.*$/i
+  // 2. 如果 path 部分 不是 http:// 或者 https:// 开头, 那么加上 https://
+  if (!path.startsWith('http://') && !path.startsWith('https://')) {
+    path = 'https://' + path;
+  }
 
-/**
- * @param {any} body
- * @param {number} status
- * @param {Object<string, string>} headers
- */
-function makeRes(body, status = 200, headers = {}) {
-    headers['access-control-allow-origin'] = '*'
-    return new Response(body, {status, headers})
-}
+  let targetUrl;
+  try {
+    targetUrl = new URL(path);
+  } catch (e) {
+    return new Response('路径中包含无效的 URL', { status: 400 });
+  }
 
+  // 3. 判断 本代理 接受的 链接 是否 github
+  if (!isGitHubDomain(targetUrl.hostname)) {
+    return new Response('访问被拒绝：此代理仅支持 GitHub 相关域名。', { status: 403 });
+  }
 
-/**
- * @param {string} urlStr
- */
-function newUrl(urlStr) {
-    try {
-        return new URL(urlStr)
-    } catch (err) {
-        return null
-    }
-}
+  // 准备转发请求
+  // GET 或 HEAD 方法不能有 body
+  const hasBody = request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH';
+  
+  const response = await fetch(targetUrl.toString(), {
+    method: request.method,
+    headers: request.headers,
+    body: hasBody ? request.body : null,
+    redirect: 'follow',
+  });
 
+  // 复制响应头，并设置 CORS
+  const newHeaders = new Headers(response.headers);
+  newHeaders.set('access-control-allow-origin', '*');
+  newHeaders.set('access-control-allow-headers', '*');
+  newHeaders.set('access-control-allow-methods', '*');
 
-addEventListener('fetch', e => {
-    const ret = fetchHandler(e)
-        .catch(err => makeRes('cfworker error:\n' + err.stack, 502))
-    e.respondWith(ret)
-})
+  // 4. 检查 path 是否以 .sh 结尾
+  const finalUrl = new URL(response.url);
+  const isScript = finalUrl.pathname.endsWith('.sh');
 
+  // 5. 对于 .sh 结尾的脚本文件 (并且请求成功)
+  if (isScript && response.status === 200) {
+    let bodyText = await response.text();
 
-function checkUrl(u) {
-    for (let i of [exp1, exp2, exp3, exp4, exp5, exp6, exp7, exp8, exp9]) {
-        if (u.search(i) === 0) {
-            return true
-        }
-    }
-    return false
-}
+    // ********** git.io 短链 ************
+    // 修复 git.io 链接：[空格]git.io 替换为 [空格]https://git.io
+    bodyText = bodyText.replace(/(\s)(git\.io)/g, '$1https://$2');
+    // **********************************
 
-/*
-*2025-11 V2 如果请求 .sh 路径, 说明是请求的脚本. 在文本中查找 github 相关的 URL, 并在前面添加本身的代理前缀
-* 这样用户执行脚本时, 也会通过本代理获取脚本中引用的其他脚本或资源
-*/
-async function handleShellScript(req, path, urlObj) {
-    // 首先获取原始脚本内容
-    const response = await httpHandler(req, path);
+    // 对所有 GitHub 链接进行查找替换 (嵌套代理)
+    // 匹配所有 https?://... 链接
+    const urlRegex = /(https?:\/\/[^\s"'`()<>]+)/g;
 
-    // 如果不是成功响应，直接返回
-    if (!response.ok) {
-        return response;
-    }
-
-    // 获取脚本内容
-    let scriptContent = await response.text();
-
-    // 定义所有需要匹配的 URL 模式（不包含协议前缀部分）
-    const urlPatterns = [
-        'github\\.com/.+?/.+?/(?:releases|archive)/[^\\s\'"]+',
-        'github\\.com/.+?/.+?/(?:blob|raw)/[^\\s\'"]+',
-        'github\\.com/.+?/.+?/(?:info|git-)[^\\s\'"]+',
-        'raw\\.(?:githubusercontent|github)\\.com/.+?/.+?/.+?/.+',
-        'gist\\.(?:githubusercontent|github)\\.com/.+?/.+?/.+',
-        'github\\.com/.+?/.+?/tags[^\\s\'"]*',
-        'api\\.github\\.com/[^\\s\'"]+',
-        'git\\.io/[^\\s\'"]+',
-        'gitlab\\.com/[^\\s\'"]+',
-    ];
-
-    // 构建完整的正则表达式：匹配可选的 http:// 或 https:// 加上 URL 模式
-    const fullPattern = '(https?://)?(' + urlPatterns.join('|') + ')';
-    const urlRegex = new RegExp(fullPattern, 'gi');
-
-    // 替换所有匹配的 URL
-    scriptContent = scriptContent.replace(urlRegex, (match, protocol, url) => {
-        // 如果 URL 已经包含我们的代理前缀，跳过
-        if (match.includes(urlObj.origin)) {
-            return match;
-        }
-
-        // 确保 URL 有协议
-        let fullUrl = match;
-        if (!protocol) {
-            fullUrl = 'https://' + match;
-        }
-
-        // 添加代理前缀
-        return urlObj.origin + '/' + fullUrl;
-    });
-
-    // 复制响应头
-    const newHeaders = new Headers(response.headers);
-    
-    // 返回修改后的脚本
-    return new Response(scriptContent, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: newHeaders
-    });
-}
-
-/**
- * @param {FetchEvent} e
- */
-async function fetchHandler(e) {
-    const req = e.request
-    const urlStr = req.url
-    const urlObj = new URL(urlStr)
-    
-    console.log("in:" +urlStr)
-
-    let path = urlObj.searchParams.get('q')
-    if (path) {
-        return Response.redirect('https://' + urlObj.host + PREFIX + path, 301)
-    }
-
-    path = urlObj.href.substr(urlObj.origin.length + PREFIX.length)
-    console.log ("path:" + path)
-
-    // 判断有没有嵌套自己调用自己
-    const exp0 = 'https:/' + urlObj.host + '/'
-    console.log ("exp0:" + exp0)
-    while (path.startsWith(exp0)) {
-        console.log ("in while")
-        path = path.replace(exp0, '')
-    }
-    console.log ("path:" + path)
-
-    // cfworker 会把路径中的 `//` 合并成 `/`
-    path = path.replace(/^https?:\/+/, 'https://')
-    console.log ("path:" + path)
-
-    if (path.search(exp1) === 0 || path.search(exp3) === 0 || path.search(exp4) === 0 || path.search(exp5) === 0 || path.search(exp6) === 0 || path.search(exp7) === 0 || path.search(exp8) === 0 || path.search(exp9) === 0) {
+    bodyText = bodyText.replace(urlRegex, (match) => {
+      try {
+        // 'match' 是一个完整的 URL, e.g., "https://github.com/foo"
+        const linkUrl = new URL(match);
         
-        console.log("exp 1,3,4,5,6,7,8,9")
-        if (path.endsWith('.sh')) {
-            return await handleShellScript(req, path, urlObj)
-        }
-        else {
-            return httpHandler(req, path)
-        }
-    } else if (path.search(exp2) === 0) {
-        if (Config.jsdelivr) {
-            const newUrl = path.replace('/blob/', '@').replace(/^(?:https?:\/\/)?github\.com/, 'https://cdn.jsdelivr.net/gh')
-            return Response.redirect(newUrl, 302)
+        // 使用 isGitHubDomain 函数来判断
+        if (isGitHubDomain(linkUrl.hostname)) {
+          // 如果是 GitHub 链接，添加代理前缀
+          return `${workerUrl}/${match}`;
         } else {
-            path = path.replace('/blob/', '/raw/')
-            return httpHandler(req, path)
+          // 如果不是，保持原样
+          return match;
         }
-    } else if (path.search(exp4) === 0) {
-        const newUrl = path.replace(/(?<=com\/.+?\/.+?)\/(.+?\/)/, '@$1').replace(/^(?:https?:\/\/)?raw\.(?:githubusercontent|github)\.com/, 'https://cdn.jsdelivr.net/gh')
-        return Response.redirect(newUrl, 302)
-    } else if (path==='perl-pe-para') {
-    //  2025-11 V2 不再需要了, 返回空
-    //   let perlstr = 'perl -pe'
-    //   let responseText = 's#(bash.*?\\.sh)([^/\\w\\d])#\\1 | ' + perlstr + ' "\\$(curl -L ' + urlObj.origin + '/perl-pe-para)" \\2#g; ' +
-    //                's# (git)# https://\\1#g; ' +
-    //                's#(http.*?git[^/]*?/)#' + urlObj.origin + '/\\1#g';
-      return new Response( "", { status: 200, 
-            headers: {
-              'Content-Type': 'text/plain',
-              'Cache-Control': 'max-age=300'
-            }
-          });
-    } else {
-        
-        console.log("fetch " + ASSET_URL + path)
+      } catch (e) {
+        // 如果 URL 解析失败 (例如，它可能只是看起来像 URL 的文本)，保持原样
+        return match;
+      }
+    });
 
-        return fetch(ASSET_URL + path)
-    }
+    // 因为修改了内容，所以 content-length 头部失效了，删除它
+    newHeaders.delete('content-length');
+
+    return new Response(bodyText, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders,
+    });
+  }
+
+  // 对于非 .sh 文件或非 200 状态码，直接返回（已修改 CORS 和 Location 头部）
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders,
+  });
 }
-
 
 /**
- * @param {Request} req
- * @param {string} pathname
+ * 助手函数：判断是否为目标的 GitHub 域名
+ * 域名是否以 git 开头
+ * @param {string} hostname
+ * @returns {boolean}
  */
-function httpHandler(req, pathname) {
-    const reqHdrRaw = req.headers
-
-    // preflight
-    if (req.method === 'OPTIONS' &&
-        reqHdrRaw.has('access-control-request-headers')
-    ) {
-        return new Response(null, PREFLIGHT_INIT)
-    }
-
-    const reqHdrNew = new Headers(reqHdrRaw)
-
-    let urlStr = pathname
-    let flag = !Boolean(whiteList.length)
-    for (let i of whiteList) {
-        if (urlStr.includes(i)) {
-            flag = true
-            break
-        }
-    }
-    if (!flag) {
-        return new Response("blocked", {status: 403})
-    }
-    if (urlStr.startsWith('git')) {
-        urlStr = 'https://' + urlStr
-    }
-
-    console.log("urlStr "+urlStr)
-
-    const urlObj = newUrl(urlStr)
-
-    /** @type {RequestInit} */
-    const reqInit = {
-        method: req.method,
-        headers: reqHdrNew,
-        redirect: 'manual',
-        body: req.body
-    }
-    return proxy(urlObj, reqInit)
+function isGitHubDomain(hostname) {
+// 这个正则表达式检查：
+  // 1. (^|\.) : 字符串是否以...开头 (^) 或 ( | ) 以一个点 (.) 开头
+  // 2. git     : 后面紧跟着 'git'
+  //
+  // 示例:
+  // - "github.com"      -> 匹配 (^git)
+  // - "api.github.com"  -> 匹配 (.git)hub.com
+  // - "gitlab.com"      -> 匹配 (^git)
+  // - "my.gitee.com"    -> 匹配 (.git)ee.com
+  // - "my-git.com"      -> 不匹配 (因为 'g' 前面是 '-' 而不是 '.' 或开头)
+  return /(^|\.)git/.test(hostname);
 }
-
-
-/**
- *
- * @param {URL} urlObj
- * @param {RequestInit} reqInit
- */
-async function proxy(urlObj, reqInit) {
-    const res = await fetch(urlObj.href, reqInit)
-    const resHdrOld = res.headers
-    const resHdrNew = new Headers(resHdrOld)
-
-    const status = res.status
-
-    if (resHdrNew.has('location')) {
-        let _location = resHdrNew.get('location')
-        if (checkUrl(_location))
-            resHdrNew.set('location', PREFIX + _location)
-        else {
-            reqInit.redirect = 'follow'
-            return proxy(newUrl(_location), reqInit)
-        }
-    }
-    resHdrNew.set('access-control-expose-headers', '*')
-    resHdrNew.set('access-control-allow-origin', '*')
-
-    resHdrNew.delete('content-security-policy')
-    resHdrNew.delete('content-security-policy-report-only')
-    resHdrNew.delete('clear-site-data')
-
-    return new Response(res.body, {
-        status,
-        headers: resHdrNew,
-    })
-}
-
