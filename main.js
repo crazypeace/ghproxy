@@ -30,11 +30,15 @@ function convertScript() {
   inputStr = inputStr.replace(/ git/g, ' https://git');
 
   // 再进行加github proxy的转换
+
+  // 匹配所有 https?://... 链接
+  const urlRegex = /(https?:\/\/[^\s"'`()<>]+)/g;
+
   resultStr1 = inputStr.replace(urlRegex, (match) => {
     try {
       // 'match' 是一个完整的 URL, e.g., "https://github.com/foo"
       const linkUrl = new URL(match);
-      
+
       // 使用 isGitHubDomain 函数来判断
       if (isGitHubDomain(linkUrl.hostname)) {
         // 如果是 GitHub 链接，添加代理前缀
