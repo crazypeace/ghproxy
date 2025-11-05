@@ -31,13 +31,13 @@
     <h5 class="card-title"></h5> 
     <label>输入你的 GitHub脚本完整命令 或 GitHub资源链接:</label> 
     <div class="input-group mb-3"> 
-     <input type="text" class="form-control" id="githubScript" aria-describedby="basic-addon1" placeholder="例如 bash <(curl -L https://github.com/crazypeace/warp.sh/raw/main/warp.sh) 4" /> 
+     <textarea type="text" class="form-control" id="githubScript" aria-describedby="basic-addon1" rows="5" style="resize: vertical;" placeholder="例如 bash <(curl -L https://github.com/crazypeace/warp.sh/raw/main/warp.sh) 4" /> 
     </div> 
     <div class="input-group mb-3"> 
      <button class="btn btn-primary" type="button" onclick="convertScript()" id="cvtBtn">转换</button> 
     </div> 
     <div class="input-group mb-3"> 
-     <input type="text" class="form-control" id="result1" aria-describedby="basic-addon2" onfocus="this.select()" /> 
+     <textarea type="text" class="form-control" id="result1" aria-describedby="basic-addon2" onfocus="this.select()" rows="5" style="resize: vertical;" /> 
      <button class="btn btn-info" type="button" onclick="copyResult1()">复制</button> 
     </div> 
    </div> 
