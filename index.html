@@ -15,7 +15,7 @@
    <div class="card-body"> 
     <h5 class="card-title"></h5> 
     <p>本Github Proxy项目可处理形如下列的Github一键脚本命令:</p> 
-    <p class="font-monospace">bash <(curl -L https://github.com/crazypeace/warp.sh/raw/main/warp.sh) 4 </p> 
+    <p class="font-monospace">bash <(curl -L https://github.com/crazypeace/xray-vless-reality/raw/main/install.sh || wget -O- $_) auto 8443 </p> 
     <p class="font-monospace">bash <(wget -qO- -o- https://git.io/v2ray.sh) </p> 
     <p class="font-monospace">wget -O tcpx.sh "https://git.io/JYxKU" && chmod +x tcpx.sh && ./tcpx.sh </p> 
     <p class="font-monospace">wget -N --no-check-certificate https://raw.githubusercontent.com/Misaka-blog/hysteria-install/main/hy2/hysteria.sh && bash hysteria.sh </p> 
@@ -31,7 +31,7 @@
     <h5 class="card-title"></h5> 
     <label>输入你的 GitHub脚本完整命令 或 GitHub资源链接:</label> 
     <div class="input-group mb-3"> 
-     <textarea type="text" class="form-control" id="githubScript" aria-describedby="basic-addon1" rows="5" style="resize: vertical;" placeholder="例如 bash <(curl -L https://github.com/crazypeace/warp.sh/raw/main/warp.sh) 4" > </textarea>
+     <textarea type="text" class="form-control" id="githubScript" aria-describedby="basic-addon1" rows="5" style="resize: vertical;" placeholder="例如 bash <(curl -L https://github.com/crazypeace/xray-vless-reality/raw/main/install.sh || wget -O- $_) auto 8443 " > </textarea>
     </div> 
     <div class="input-group mb-3"> 
      <button class="btn btn-primary" type="button" onclick="convertScript()" id="cvtBtn">转换</button> 
