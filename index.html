@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+ <head> 
+  <meta http-equiv="content-type" content="txt/html; charset=utf-8" /> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" /> 
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous" /> 
+  
+  <title>转化github脚本为github代理的方式</title> 
+  <link rel="stylesheet" href="./styles.css" /> 
+ </head> 
+ <body> 
+  <div class="d-flex align-items-start flex-wrap">
+  <div class="card shadow m-3"> 
+   <h5 class="card-header">解决纯IPv6的VPS运行GitHub脚本时访问GitHub不通的问题</h5> 
+   <div class="card-body"> 
+    <h5 class="card-title"></h5> 
+    <p>本Github Proxy项目可处理形如下列的Github一键脚本命令:</p> 
+    <p class="font-monospace">bash <(curl -L https://github.com/crazypeace/warp.sh/raw/main/warp.sh) 4 </p> 
+    <p class="font-monospace">bash <(wget -qO- -o- https://git.io/v2ray.sh) </p> 
+    <p class="font-monospace">wget -O tcpx.sh "https://git.io/JYxKU" && chmod +x tcpx.sh && ./tcpx.sh </p> 
+    <p class="font-monospace">wget -N --no-check-certificate https://raw.githubusercontent.com/Misaka-blog/hysteria-install/main/hy2/hysteria.sh && bash hysteria.sh </p> 
+   </div> 
+   <div class="card-footer"> 
+    <span> <a href="https://github.com/crazypeace/gh-proxy/" target="_self">Fork me on GitHub</a> </span> 
+   </div> 
+  </div> 
+
+  <div class="card shadow m-3"> 
+   <h5 class="card-header">转换Github一键脚本命令</h5> 
+   <div class="card-body"> 
+    <h5 class="card-title"></h5> 
+    <label>输入你的 GitHub脚本完整命令 或 GitHub资源链接:</label> 
+    <div class="input-group mb-3"> 
+     <input type="text" class="form-control" id="githubScript" aria-describedby="basic-addon1" placeholder="例如 bash <(curl -L https://github.com/crazypeace/warp.sh/raw/main/warp.sh) 4" /> 
+    </div> 
+    <div class="input-group mb-3"> 
+     <button class="btn btn-primary" type="button" onclick="convertScript()" id="cvtBtn">转换</button> 
+    </div> 
+    <div class="input-group mb-3"> 
+     <input type="text" class="form-control" id="result1" aria-describedby="basic-addon2" onfocus="this.select()" /> 
+     <button class="btn btn-info" type="button" onclick="copyResult1()">复制</button> 
+    </div> 
+   </div> 
+  </div> 
+
+  <div class="card shadow m-3"> 
+   <h5 class="card-header">其它说明</h5> 
+   <div class="card-body"> 
+    <h5 class="card-title"></h5> 
+    <div class="input-group mb-3"> 
+     <iframe width="560" height="315" src="https://www.youtube.com/embed/F9re4Tuy7BA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen=""></iframe> 
+    </div> 
+    <p>如果我的workers免费额度用完了, 你可以<a href="https://zelikk.blogspot.com/2023/06/gh-proxy-worker.html">自己在worker上搭gh-proxy.</a></p>
+    <p>你也可以<a href="https://zelikk.blogspot.com/2022/05/domain-cloudflare-worker-dev.html">在worker上套自己的域名</a>解决国内访问的问题. </p> 
+    <p>还有一个解决国内访问的方法, 利用Replit域名没有被墙, <a href="https://zelikk.blogspot.com/2023/07/replit-gh-proxy.html">在Replit上跑cloudflare的workers脚本 运行gh-proxy</a></p> 
+    <p>在Replit环境上搭的服务, <a href="https://zelikk.blogspot.com/2023/10/github-proxy-replit-wget-compression-auto.html">wget的用法要加上--compression=auto解决gzip压缩的问题</a></p>
+
+    <label>高级参数 (不懂就不要动)</label> 
+    <div class="input-group mb-3"> 
+     <span class="input-group-text">Github Proxy 后端</span> 
+     <input type="text" class="form-control" id="ghproxy" aria-describedby="basic-addon3" value="https://ghproxy.crazypeace.workers.dev/" /> 
+     <button class="btn btn-info" type="button" onclick="getLocalUrl()" id="localUrlBtn">使用本页</button> 
+    </div> 
+   </div> 
+  </div> 
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script> 
+  <script src="./main.js"></script>  
+ </body>
+</html>
