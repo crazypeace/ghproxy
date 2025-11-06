@@ -8,9 +8,6 @@ worker.js 139行
 自建 Python 代码  
 main.py 160行  
 
-工具页面(本身与代理无关, 只是方便使用)  
-index.html 75行  
-main.js 70行  
 
 # 面向GPT开发
 提示词
