@@ -42,7 +42,7 @@ function convertScript() {
       // 使用 isGitHubDomain 函数来判断
       if (isGitHubDomain(linkUrl.hostname)) {
         // 如果是 GitHub 链接，添加代理前缀
-        return `${ghproxy}/${match}`;
+        return `${ghproxy}${match}`;
       } else {
         // 如果不是，保持原样
         return match;
