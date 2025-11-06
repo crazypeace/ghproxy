@@ -4,6 +4,8 @@ from flask import Flask, request, Response, abort
 import requests
 
 # Worker 访问的静态资源 URL
+HOST = '127.0.0.1'  # 监听地址，建议监听本地然后由web服务器反代
+PORT = 80  # 监听端口
 ASSET_URL = 'https://crazypeace.github.io/ghproxy/'
 
 app = Flask(__name__)
@@ -155,4 +157,4 @@ def handle_request(path: str):
 if __name__ == '__main__':
     # 启动 Flask 应用程序
     # 生产环境中应使用 Gunicorn 或 uWSGI
-    app.run(debug=True, port=8000)
+    app.run(host=HOST, port=PORT, debug=True)
