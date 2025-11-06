@@ -26,6 +26,10 @@ async function handleRequest(request) {
   if (path === 'main.js') {
     return fetch(ASSET_URL + path)
   }
+  if (path === 'perl-pe-para') {
+    // 返回一个空的 200 OK 响应
+    return new Response("", { status: 200 }); 
+  }
 
   // 2. 如果 path 部分 不是 http:// 或者 https:// 开头, 那么加上 https://
   if (!path.startsWith('http://') && !path.startsWith('https://')) {

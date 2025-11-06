@@ -41,7 +41,11 @@ def handle_request(path: str):
     if path in ('styles.css', 'main.js'):
         response = requests.get(ASSET_URL + path)
         return Response(response.content, status=response.status_code, headers=dict(response.headers))
-
+    
+    # 如果 path 为 perl-pe-para，返回空响应
+    if path == 'perl-pe-para':
+        return Response('', status=200)
+    
     # 2. 如果 path 部分 不是 http:// 或者 https:// 开头, 那么加上 https://
     if not path.startswith('http://') and not path.startswith('https://'):
         path = 'https://' + path
