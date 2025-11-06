@@ -47,10 +47,13 @@ async function handleRequest(request) {
   // 准备转发请求
   // GET 或 HEAD 方法不能有 body
   const hasBody = request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH';
+  
+  const headers = new Headers(request.headers);
+  headers.set('Connection', 'Keep-Alive'); // 明确要求保持连接
 
   const response = await fetch(targetUrl.toString(), {
     method: request.method,
-    headers: request.headers,
+    headers: headers,
     body: hasBody ? request.body : null,
     redirect: 'follow',
   });
@@ -77,7 +80,7 @@ async function handleRequest(request) {
     // 对所有 GitHub 链接进行查找替换 (嵌套代理)
     // 匹配所有 https?://... 链接
     const urlRegex = /(https?:\/\/[^\s"'`()<>]+)/g;
-    
+
     bodyText = bodyText.replace(urlRegex, (match) => {
       try {
         // 'match' 是一个完整的 URL, e.g., "https://github.com/foo"
