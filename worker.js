@@ -31,6 +31,20 @@ async function handleRequest(request) {
     return new Response("", { status: 200 }); 
   }
 
+  // 处理嵌套的代理调用
+  // 目标：防止出现 https://ghproxy.icdyct.nyc.mn/https://ghproxy.icdyct.nyc.mn/https://api.github.com/repos/XTLS/Xray-core/releases/latest
+  const selfPrefixFull = workerUrl + '/'; // e.g., "https://my-worker.example.com/"
+
+  while (true) {
+    if (path.startsWith(selfPrefixFull)) {
+      path = path.substring(selfPrefixFull.length);
+    } else {
+      // 当 path 不再以任何一个前缀开头时，跳出循环
+      break;
+    }
+  }
+  // 循环结束后, 'path' 应该是去除了所有 worker 自身前缀的 "干净" URL
+
   // 2. 如果 path 部分 不是 http:// 或者 https:// 开头, 那么加上 https://
   if (!path.startsWith('http://') && !path.startsWith('https://')) {
     path = 'https://' + path;
