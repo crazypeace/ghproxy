@@ -3,8 +3,8 @@ from urllib.parse import urlparse, urlunparse
 from flask import Flask, request, Response, abort
 import requests
 
-HOST = '0.0.0.0'  # 监听地址，建议监听本地然后由web服务器反代
-PORT = 8000  # 监听端口
+HOST = '127.0.0.1'  # 监听地址，建议监听本地然后由web服务器反代
+PORT = 80  # 监听端口
 
 # Worker 访问的静态资源 URL
 ASSET_URL = 'https://crazypeace.github.io/ghproxy/'
