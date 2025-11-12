@@ -21,6 +21,24 @@ def is_github_domain(hostname: str) -> bool:
     # 检查字符串是否以 'git' 开头 (^) 或 ( | ) 以一个点 '.' 开头，后面紧跟着 'git'
     return re.search(r'(^|\.)git', hostname) is not None
 
+def clean_forwarded_headers(headers: dict) -> dict:
+    """清理并返回用于 Response 的头部"""
+    new_headers = dict(headers)
+    # 移除所有与内容编码和长度相关的头部，避免 Content/Header 不匹配
+    new_headers.pop('Content-Encoding', None)
+    new_headers.pop('Content-Length', None)
+    new_headers.pop('Transfer-Encoding', None)
+    # 移除与连接相关的，由 Flask/WSGI 处理
+    new_headers.pop('Connection', None)
+    new_headers.pop('Host', None)
+    
+    # 添加必要的 CORS 头部
+    new_headers['Access-Control-Allow-Origin'] = '*'
+    new_headers['Access-Control-Allow-Headers'] = '*'
+    new_headers['Access-Control-Allow-Methods'] = '*'
+    
+    return new_headers
+
 # --- 主处理函数 ---
 
 @app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
@@ -35,12 +53,12 @@ def handle_request(path: str):
     if not path:
         # 如果 path 为空，返回主页
         response = requests.get(ASSET_URL)
-        return Response(response.content, status=response.status_code, headers=dict(response.headers))
+        return Response(response.content, status=response.status_code, headers=clean_forwarded_headers(response.headers))
 
     # 处理特定的静态资源
     if path in ('styles.css', 'main.js'):
         response = requests.get(ASSET_URL + path)
-        return Response(response.content, status=response.status_code, headers=dict(response.headers))
+        return Response(response.content, status=response.status_code, headers=clean_forwarded_headers(response.headers))
     
     # 如果 path 为 perl-pe-para，返回空响应
     if path == 'perl-pe-para':
@@ -79,13 +97,14 @@ def handle_request(path: str):
 
     # 准备转发请求
     
-    # 复制原始请求头，并设置 Connection 头
-    headers = {k: v for k, v in request.headers}
+    # 复制原始请求头
+    request_headers = dict(request.headers)
     # 移除可能引起问题的头，如 Host, Accept-Encoding, Content-Length (后面会重新计算)
-    headers.pop('Host', None)
-    headers.pop('Accept-Encoding', None)
-    headers.pop('Content-Length', None)
-    headers['Connection'] = 'Keep-Alive'
+    request_headers.pop('Host', None)
+    request_headers.pop('Accept-Encoding', None)
+    request_headers.pop('Content-Length', None)
+    # 设置 Connection 头
+    request_headers['Connection'] = 'Keep-Alive'
 
     # 发起代理请求
     try:
@@ -93,7 +112,7 @@ def handle_request(path: str):
         response = requests.request(
             method=request.method,
             url=full_target_url,
-            headers=headers,
+            headers=request_headers,
             data=request.get_data(),  # 获取原始请求的 body
             allow_redirects=True,     # 默认 'follow'
             stream=True               # 使用 stream 模式以避免读取大文件到内存
@@ -103,12 +122,8 @@ def handle_request(path: str):
         return Response(f'代理请求失败: {e}', status=503)
 
     # 复制响应头，并设置 CORS
-    new_headers = dict(response.headers)
+    response_headers = clean_forwarded_headers(response.headers)
     
-    # 设置 CORS
-    new_headers['Access-Control-Allow-Origin'] = '*'
-    new_headers['Access-Control-Allow-Headers'] = '*'
-    new_headers['Access-Control-Allow-Methods'] = '*'
 
     # 4. 检查 path 是否以 .sh 结尾
     final_url_parts = urlparse(response.url)
@@ -144,17 +159,14 @@ def handle_request(path: str):
 
         body_text = url_regex.sub(replace_link, body_text)
 
-        # 因为修改了内容，所以 content-length 头部失效了，删除它
-        new_headers.pop('Content-Length', None)
-
         # 关闭流，释放连接
         response.close()
 
         return Response(
             body_text,
             status=response.status_code,
-            headers=new_headers,
-            mimetype=new_headers.get('Content-Type', 'text/plain') # 设置 MimeType
+            headers=response_headers,
+            mimetype=response_headers.get('Content-Type', 'text/plain') # 设置 MimeType
         )
     
     # 5. 对于非 .sh 文件或非 200 状态码，直接返回
@@ -167,7 +179,7 @@ def handle_request(path: str):
     return Response(
         generate_content(),
         status=response.status_code,
-        headers=new_headers,
+        headers=response_headers,
         mimetype=response.headers.get('Content-Type')
     )
 
