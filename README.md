@@ -1,5 +1,5 @@
 # ghproxy
-极简 GitHub Porxy 支持GitHub脚本的无限嵌套调用
+极简 GitHub Porxy 解决GitHub脚本的无限嵌套调用
 
 # 代码量小
 Cloudflare worker 代码  
