@@ -1,14 +1,17 @@
 const ASSET_URL = 'https://crazypeace.github.io/ghproxy/'
 
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request));
-});
+export default {
+  async fetch(request, env, ctx) {
+    return handleRequest(request, env);
+  }
+}
 
 /**
  * 处理所有传入的请求
  * @param {Request} request
+ * @param {Object} env - 环境变量
  */
-async function handleRequest(request) {
+async function handleRequest(request, env) {
   const url = new URL(request.url);
   const workerUrl = url.origin; // 获取 worker 自己的域名, e.g., https://my-worker.example.com
 
