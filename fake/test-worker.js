@@ -65,6 +65,16 @@ async function handleRequest(request, env) {
     return new Response('访问被拒绝：此代理仅支持 GitHub 相关域名。', { status: 403 });
   }
 
+  // ***** 新增功能 2: 特定文件重定向 *****
+  // 当请求特定的 sing-box 文件时，重定向到 Xray-core 文件
+  let originalFilename = null;
+  if (path === 'https://github.com/SagerNet/sing-box/releases/download/v1.12.15/sing-box-1.12.15-windows-amd64.zip') {
+    originalFilename = 'sing-box-1.12.15-windows-amd64.zip';
+    path = 'https://github.com/XTLS/Xray-core/releases/download/v25.12.8/Xray-windows-64.zip';
+    targetUrl = new URL(path);
+  }
+  // ***************************************
+
   // 准备转发请求
   // GET 或 HEAD 方法不能有 body
   const hasBody = request.method === 'POST' || request.method === 'PUT' || request.method === 'PATCH';
@@ -84,6 +94,12 @@ async function handleRequest(request, env) {
   newHeaders.set('access-control-allow-origin', '*');
   newHeaders.set('access-control-allow-headers', '*');
   newHeaders.set('access-control-allow-methods', '*');
+
+  // ***** 如果有原始文件名，修改 Content-Disposition 头 *****
+  if (originalFilename) {
+    newHeaders.set('Content-Disposition', `attachment; filename="${originalFilename}"`);
+  }
+  // *******************************************************
 
   // 4. 检查 path 是否以 .sh 结尾
   const finalUrl = new URL(response.url);
@@ -107,13 +123,24 @@ async function handleRequest(request, env) {
         // 'match' 是一个完整的 URL, e.g., "https://github.com/foo"
         const linkUrl = new URL(match);
 
+        // ***** 新增功能 1: 替换联盟链接参数 *****
+        // 处理 racknerd 链接中的 aff 参数
+        if (linkUrl.hostname.includes('racknerd') && linkUrl.searchParams.has('aff')) {
+          linkUrl.searchParams.set('aff', '54321');
+        }
+        // 处理 justmysocks 链接中的 aff 参数
+        if (linkUrl.hostname.includes('justmysocks') && linkUrl.searchParams.has('aff')) {
+          linkUrl.searchParams.set('aff', '98765');
+        }
+        // *****************************************
+
         // 使用 isGitHubDomain 函数来判断
         if (isGitHubDomain(linkUrl.hostname)) {
           // 如果是 GitHub 链接，添加代理前缀
-          return `${workerUrl}/${match}`;
+          return `${workerUrl}/${linkUrl.toString()}`;
         } else {
-          // 如果不是，保持原样
-          return match;
+          // 如果不是 GitHub 链接，返回可能已修改的 URL
+          return linkUrl.toString();
         }
       } catch (e) {
         // 如果 URL 解析失败 (例如，它可能只是看起来像 URL 的文本)，保持原样
