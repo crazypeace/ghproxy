@@ -1,11 +1,11 @@
 RESET='\e[0m'
 
-RED='\e[31m'             # 稳定
-ORANGE='\e[38;5;208m'    # 贵（256色）
-PURPLE='\e[35m'          # 慢 / 吐槽
-YELLOW='\e[33m'          # 速度
-GREEN='\e[32m'           # 差 / 链接
-BLUE='\e[34m'            # 便宜
+RED='\e[41m'             # 稳定
+ORANGE='\e[48;5;208m'    # 贵（256色）
+PURPLE='\e[45m'          # 慢 / 吐槽
+YELLOW='\e[43m'          # 速度
+GREEN='\e[42m'           # 差 / 链接
+BLUE='\e[44m'            # 便宜
 
 echo -e "         ____"
 echo -e "        /    \\"
