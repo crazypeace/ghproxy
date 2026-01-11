@@ -16,6 +16,6 @@ echo
 echo "这个才是 三色图中央 的 VPN (才怪"
 echo "https://justmysocks.net/members/aff.php?aff=256&gid=1"
 echo
-echo "这个链接是 sing-box 的压缩包"
+echo "现在下载sing-box 的压缩包"
 echo "https://github.com/SagerNet/sing-box/releases/download/v1.12.15/sing-box-1.12.15-windows-amd64.zip"
-echo 
+wget "https://github.com/SagerNet/sing-box/releases/download/v1.12.15/sing-box-1.12.15-windows-amd64.zip"
