@@ -31,5 +31,6 @@ echo
 
 echo -e "现在下载 sing-box 的压缩包 ${PURPLE}(吗?${RESET}"
 echo -e "${GREEN} https://github.com/SagerNet/sing-box/releases/download/v1.12.15/sing-box-1.12.15-windows-amd64.zip ${RESET}"
+echo
 
 wget -nv "https://github.com/SagerNet/sing-box/releases/download/v1.12.15/sing-box-1.12.15-windows-amd64.zip"
