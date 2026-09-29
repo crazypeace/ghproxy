@@ -1,3 +1,4 @@
+import os
 import re
 from urllib.parse import urlparse, urlunparse
 from flask import Flask, request, Response, abort
@@ -9,7 +10,19 @@ PORT = 80  # 监听端口
 # Worker 访问的静态资源 URL
 ASSET_URL = 'https://crazypeace.github.io/ghproxy/'
 
+# 访问密钥：通过环境变量 PROXY_API_KEY 配置，未配置时拒绝所有请求（fail-closed）
+PROXY_API_KEY = os.environ.get('PROXY_API_KEY')
+
 app = Flask(__name__)
+
+@app.before_request
+def require_api_key():
+    """在处理任何请求前进行身份验证，防止未授权访问"""
+    if not PROXY_API_KEY:
+        abort(500, description='服务器未配置 PROXY_API_KEY，拒绝所有请求。')
+    provided_key = request.headers.get('X-Api-Key') or request.args.get('api_key')
+    if provided_key != PROXY_API_KEY:
+        abort(401, description='未授权：缺失或无效的 API Key。')
 
 # --- 助手函数 ---
 
